@@ -17,6 +17,9 @@
  */
 package org.ballerinalang.packerina;
 
+import org.ballerinalang.module.Push;
+import org.ballerinalang.module.Search;
+import org.ballerinalang.module.exception.ModuleCliException;
 import org.ballerinalang.spi.EmbeddedExecutor;
 import org.ballerinalang.toml.model.Proxy;
 import org.ballerinalang.util.EmbeddedExecutorProvider;
@@ -25,6 +28,9 @@ import org.wso2.ballerinalang.util.TomlParserUtils;
 
 import java.io.PrintStream;
 import java.util.Optional;
+
+import static org.ballerinalang.tool.LauncherUtils.createLauncherException;
+import static org.wso2.ballerinalang.util.RepoUtils.getRemoteRepoURL;
 
 /**
  * This class provides util methods when searching for Ballerina modules in the central.
@@ -43,21 +49,37 @@ public class SearchUtils {
         EmbeddedExecutor executor = EmbeddedExecutorProvider.getInstance().getExecutor();
         Proxy proxy = TomlParserUtils.readSettings().getProxy();
         String urlWithModulePath = RepoUtils.getRemoteRepoURL() + "/modules/";
-        String proxyPortAsString = proxy.getPort() == 0 ? "" : Integer.toString(proxy.getPort());
-        
-        Optional<RuntimeException> exception = executor.executeMainFunction("module_search",
-                urlWithModulePath, query, proxy.getHost(), proxyPortAsString, proxy.getUserName(), proxy.getPassword(),
-                RepoUtils.getTerminalWidth());
-        if (exception.isPresent()) {
-            String errorMessage = exception.get().getMessage();
+        //        String proxyPortAsString = proxy.getPort() == 0 ? "" : Integer.toString(proxy.getPort());
+        //
+        //        Optional<RuntimeException> exception = executor.executeMainFunction("module_search",
+        //                urlWithModulePath, query, proxy.getHost(), proxyPortAsString, proxy.getUserName(), proxy.getPassword(),
+        //                RepoUtils.getTerminalWidth());
+
+        //        if (exception.isPresent()) {
+        //            String errorMessage = exception.get().getMessage();
+        //            if (null != errorMessage && !"".equals(errorMessage.trim())) {
+        //                // removing the error stack
+        //                if (errorMessage.contains("\n\tat")) {
+        //                    errorMessage = errorMessage.substring(0, errorMessage.indexOf("\n\tat"));
+        //                }
+        //
+        //                ERROR_STREAM.println(errorMessage);
+        //            }
+        //        }
+        try {
+            Search.searchModule(urlWithModulePath, query, proxy.getHost(), proxy.getPort(), proxy.getUserName(),
+                    proxy.getPassword(), RepoUtils.getTerminalWidth());
+        } catch (ModuleCliException e) {
+            String errorMessage = e.getMessage();
             if (null != errorMessage && !"".equals(errorMessage.trim())) {
                 // removing the error stack
                 if (errorMessage.contains("\n\tat")) {
                     errorMessage = errorMessage.substring(0, errorMessage.indexOf("\n\tat"));
                 }
-    
+
                 ERROR_STREAM.println(errorMessage);
             }
         }
+
     }
 }

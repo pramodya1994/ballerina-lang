@@ -102,6 +102,7 @@ dependencies {
     dist project(':language-server:language-server-compiler')
     dist project(':language-server:language-server-commons')
     dist project(':ballerina-packerina')
+    dist project(':ballerina-module-cli')
     dist project(':openapi-ballerina:ballerina-to-openapi-generator')
     dist project(':openapi-ballerina:openapi-to-ballerina-generator')
     dist project(':openapi-ballerina:openapi-validator')

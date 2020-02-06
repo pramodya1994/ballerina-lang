@@ -17,6 +17,8 @@
  */
 package org.ballerinalang.packerina;
 
+import org.ballerinalang.module.Push;
+import org.ballerinalang.module.exception.ModuleCliException;
 import org.ballerinalang.spi.EmbeddedExecutor;
 import org.ballerinalang.toml.model.Dependency;
 import org.ballerinalang.toml.model.DependencyMetadata;
@@ -147,30 +149,40 @@ public class PushUtils {
             // Get access token
             String accessToken = checkAccessToken();
             Proxy proxy = settings.getProxy();
-            String proxyPortAsString = proxy.getPort() == 0 ? "" : Integer.toString(proxy.getPort());
+//            String proxyPortAsString = proxy.getPort() == 0 ? "" : Integer.toString(proxy.getPort());
         
             // Push module to central
             String urlWithModulePath = RepoUtils.getRemoteRepoURL() + "/modules/";
             String outputLogMessage = orgName + "/" + moduleName + ":" + version + " [project repo -> central]";
         
-            Optional<RuntimeException> exception = executor.executeMainFunction("module_push",
-                    urlWithModulePath, proxy.getHost(), proxyPortAsString, proxy.getUserName(),
-                    proxy.getPassword(), accessToken, orgName, baloPath.toAbsolutePath().toString(),
-                    outputLogMessage);
-            if (exception.isPresent()) {
-                String errorMessage = exception.get().getMessage();
-                if (null != errorMessage && !"".equals(errorMessage.trim())) {
-                    // removing the error stack
-                    if (errorMessage.contains("\n\tat")) {
-                        errorMessage = errorMessage.substring(0, errorMessage.indexOf("\n\tat"));
-                    }
-    
-                    errorMessage = errorMessage.replaceAll("error: ", "");
-    
-                    throw createLauncherException("unexpected error occurred while pushing module '" + moduleName +
-                                                  "' to remote repository(" + getRemoteRepoURL() + "): " +
-                                                  errorMessage);
-                }
+//            Optional<RuntimeException> exception = executor.executeMainFunction("module_push",
+//                    urlWithModulePath, proxy.getHost(), proxyPortAsString, proxy.getUserName(),
+//                    proxy.getPassword(), accessToken, orgName, baloPath.toAbsolutePath().toString(),
+//                    outputLogMessage);
+//            if (exception.isPresent()) {
+//                String errorMessage = exception.get().getMessage();
+//                if (null != errorMessage && !"".equals(errorMessage.trim())) {
+//                    // removing the error stack
+//                    if (errorMessage.contains("\n\tat")) {
+//                        errorMessage = errorMessage.substring(0, errorMessage.indexOf("\n\tat"));
+//                    }
+//
+//                    errorMessage = errorMessage.replaceAll("error: ", "");
+//
+//                    throw createLauncherException("unexpected error occurred while pushing module '" + moduleName +
+//                                                  "' to remote repository(" + getRemoteRepoURL() + "): " +
+//                                                  errorMessage);
+//                }
+//            }
+
+            try {
+                Push.pushModule(urlWithModulePath, proxy.getHost(), proxy.getPort(), proxy.getUserName(),
+                        proxy.getPassword(), accessToken, orgName, baloPath.toAbsolutePath().toString(),
+                        outputLogMessage);
+            } catch (ModuleCliException e) {
+                throw createLauncherException("unexpected error occurred while pushing module '" + moduleName +
+                        "' to remote repository(" + getRemoteRepoURL() + "): " +
+                        e.getMessage());
             }
         }
     }

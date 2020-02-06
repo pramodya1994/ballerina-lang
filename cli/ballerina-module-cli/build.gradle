@@ -42,9 +42,10 @@ dependencies {
     implementation project(':testerina:testerina-core')
     implementation project(':toml-parser')
     implementation project(':docerina')
-    implementation project(':ballerina-module-cli')
+    implementation project(':ballerina-http')
     implementation 'com.moandjiezana.toml:toml4j'
     implementation 'info.picocli:picocli'
+    implementation 'org.wso2.transport.http:org.wso2.transport.http.netty'
     testCompile 'org.testng:testng'
     testCompile 'com.moandjiezana.toml:toml4j'
 
