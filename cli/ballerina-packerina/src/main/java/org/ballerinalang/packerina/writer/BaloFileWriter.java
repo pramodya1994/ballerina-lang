@@ -269,8 +269,11 @@ public class BaloFileWriter {
             if (platform.libraries != null) {
                 for (Library platformLib : platform.libraries) {
                     if (platformLib.getPath() == null) {
-                        throw new BLangCompilerException("path is not specified for given platform library " +
-                                "dependency.");
+                        if (platformLib.getGroupId() == null || platformLib.getArtifactId() == null
+                                || platformLib.getVersion() == null) {
+                            throw new BLangCompilerException("path is not specified for given platform library " +
+                                    "dependency.");
+                        }
                     }
                 }
             }
@@ -307,7 +310,13 @@ public class BaloFileWriter {
 
             List<Path> libs = manifest.getPlatform().libraries.stream()
                     .filter(lib -> lib.getModules() == null || Arrays.asList(lib.getModules()).contains(moduleName))
-                    .map(lib -> Paths.get(lib.getPath())).collect(Collectors.toList());
+                    .map(lib -> {
+                        if (lib.getPath() != null) {
+                            return Paths.get(lib.getPath());
+                        } else {
+                            return Paths.get("./target/libs/", lib.getArtifactId() + "-" + lib.getVersion() + ".jar");
+                        }
+                    }).collect(Collectors.toList());
 
             for (Path lib : libs) {
                 Path nativeFile = projectDirectory.resolve(lib);

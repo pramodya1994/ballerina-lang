@@ -74,6 +74,14 @@ public class Manifest {
             if (metadataMap.keySet().contains("path") && metadataMap.get("path") instanceof String) {
                 metadata.setPath((String) metadataMap.get("path"));
             }
+
+            if (metadataMap.keySet().contains("groupId") && metadataMap.get("groupId") instanceof String) {
+                metadata.setPath((String) metadataMap.get("groupId"));
+            }
+
+            if (metadataMap.keySet().contains("artifactId") && metadataMap.get("artifactId") instanceof String) {
+                metadata.setPath((String) metadataMap.get("artifactId"));
+            }
         }
         return metadata;
     }
