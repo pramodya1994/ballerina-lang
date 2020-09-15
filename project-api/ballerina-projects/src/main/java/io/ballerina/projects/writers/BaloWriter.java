@@ -28,7 +28,7 @@ import io.ballerina.projects.model.PackageJson;
 import io.ballerina.projects.model.PlatformLibrary;
 import io.ballerina.projects.model.adaptors.JsonCollectionsAdaptor;
 import io.ballerina.projects.model.adaptors.JsonStringsAdaptor;
-import io.ballerina.projects.writers.exceptions.NoPermissionException;
+import io.ballerina.projects.utils.ProjectConstants;
 import org.ballerinalang.compiler.BLangCompilerException;
 import org.ballerinalang.toml.model.Library;
 import org.wso2.ballerinalang.util.RepoUtils;
@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -59,8 +60,6 @@ import java.util.Map;
  */
 public class BaloWriter {
 
-    private static final String MODULES = "modules";
-
     private BaloWriter() {}
 
     /**
@@ -70,7 +69,7 @@ public class BaloWriter {
      * @param path Directory where the .balo should be created.
      * @return Newly created balo path
      */
-    public static Path write(Package pkg, Path path) {
+    public static Path write(Package pkg, Path path) throws AccessDeniedException {
         // todo check if the given package is compiled properly
 
         // Check if the path is a directory
@@ -78,13 +77,8 @@ public class BaloWriter {
             throw new RuntimeException("Given path is not a directory: " + path);
         }
 
-        // Check directory permissions
-//        if (!new File(String.valueOf(path)).canWrite()) {
-//            throw new NoPermissionException("No write access to create balo:" + path);
-//        }
-
         if (!path.toFile().canWrite()) {
-            throw new NoPermissionException("No write access to create balo:" + path);
+            throw new AccessDeniedException("No write access to create balo:" + path);
         }
 
         BallerinaToml ballerinaToml = pkg.ballerinaToml();
@@ -253,7 +247,7 @@ public class BaloWriter {
 
         // If `Module.md` of default module exists, create `docs/modules` directory & add `Module.md`
         Path defaultModuleMd = packageSourceDir.resolve(moduleMdFileName);
-        Path modulesDirInBaloDocs = docsDirInBalo.resolve(MODULES);
+        Path modulesDirInBaloDocs = docsDirInBalo.resolve(ProjectConstants.MODULES_ROOT);
 
         if (defaultModuleMd.toFile().exists()) {
             Files.createDirectory(modulesDirInBaloDocs);
@@ -265,15 +259,15 @@ public class BaloWriter {
         }
 
         // Add other module docs
-        File modulesSourceDir = new File(String.valueOf(packageSourceDir.resolve(MODULES)));
+        File modulesSourceDir = new File(String.valueOf(packageSourceDir.resolve(ProjectConstants.MODULES_ROOT)));
         File[] directoryListing = modulesSourceDir.listFiles();
 
         if (directoryListing != null) {
             for (File moduleDir : directoryListing) {
                 if (moduleDir.isDirectory()) {
                     // Get `Module.md` path
-                    Path otherModuleMd = packageSourceDir.resolve(MODULES).resolve(moduleDir.getName())
-                            .resolve(moduleMdFileName);
+                    Path otherModuleMd = packageSourceDir.resolve(ProjectConstants.MODULES_ROOT)
+                            .resolve(moduleDir.getName()).resolve(moduleMdFileName);
                     // Create `package.module` folder, if `Module.md` path exists
                     if (otherModuleMd.toFile().exists()) {
                         Path otherModuleDirInBaloDocs = modulesDirInBaloDocs
@@ -291,7 +285,7 @@ public class BaloWriter {
     private static void addPackageSource(Path root, Path packageSourceDir, String defaultPackageName)
             throws IOException {
         // create the module directory in zip
-        Path packageInBalo = root.resolve(MODULES);
+        Path packageInBalo = root.resolve(ProjectConstants.MODULES_ROOT);
         Files.createDirectory(packageInBalo);
 
         // add default module
@@ -304,7 +298,7 @@ public class BaloWriter {
         copyBallerinaSrcFiles(packageSourceDir, defaultPkgDirInBalo);
 
         // add other modules
-        File modulesSourceDir = new File(String.valueOf(packageSourceDir.resolve(MODULES)));
+        File modulesSourceDir = new File(String.valueOf(packageSourceDir.resolve(ProjectConstants.MODULES_ROOT)));
         File[] directoryListing = modulesSourceDir.listFiles();
 
         if (directoryListing != null) {
@@ -324,8 +318,8 @@ public class BaloWriter {
     }
 
     private static void copyResourcesDir(Path sourceDir, Path sourceDirInBalo) throws IOException {
-        Path resourcesDir = sourceDirInBalo.resolve("resources");
-        Path resourcesSrcDir = sourceDir.resolve("resources");
+        Path resourcesDir = sourceDirInBalo.resolve(ProjectConstants.RESOURCE_DIR_NAME);
+        Path resourcesSrcDir = sourceDir.resolve(ProjectConstants.RESOURCE_DIR_NAME);
 
         // if resources not exists ignore copying
         if (resourcesSrcDir.toFile().exists()) {
@@ -340,7 +334,7 @@ public class BaloWriter {
         File[] defaultModuleFiles = new File(String.valueOf(sourceDirPath)).listFiles();
         if (defaultModuleFiles != null) {
             for (File file : defaultModuleFiles) {
-                if (file.isFile() && file.getName().endsWith(".bal")) {
+                if (file.isFile() && file.getName().endsWith(ProjectConstants.BLANG_SOURCE_EXT)) {
                     Files.copy(file.toPath(), targetPath.resolve(file.getName()), StandardCopyOption.REPLACE_EXISTING);
                 }
             }
@@ -354,7 +348,7 @@ public class BaloWriter {
         if (platformLibs == null) {
             return;
         }
-        Path platformLibsDir = root.resolve("lib");
+        Path platformLibsDir = root.resolve(ProjectConstants.LIB_DIR);
         Files.createDirectory(platformLibsDir);
 
         for (Library lib : platformLibs) {
@@ -369,7 +363,8 @@ public class BaloWriter {
                 try {
                     Files.copy(nativeFile, targetPath, StandardCopyOption.REPLACE_EXISTING);
                 } catch (IOException e) {
-                    throw new BLangCompilerException("Dependency jar not found : " + lib.toString());
+                    throw new BLangCompilerException(
+                            "Error while trying to add platform library to the BALO: " + lib.toString(), e);
                 }
             }
         }

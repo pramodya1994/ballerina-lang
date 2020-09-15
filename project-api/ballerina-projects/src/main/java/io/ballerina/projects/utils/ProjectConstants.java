@@ -43,6 +43,7 @@ public class ProjectConstants {
 
     // Balo specific constants
     public static final String MODULES_ROOT = "modules";
+    public static final String LIB_DIR = "lib";
 
     public static final String BALO_CACHE_DIR_NAME = "balo_cache";
     public static final String BIR_CACHE_DIR_NAME = "bir_cache";
