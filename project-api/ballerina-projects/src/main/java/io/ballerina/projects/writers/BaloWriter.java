@@ -167,10 +167,7 @@ public class BaloWriter {
         addPackageJson(root, ballerinaToml);
         addPackageDoc(root, packagePath, ballerinaToml.getPackage().getName());
         addPackageSource(root, packagePath, packageName);
-        // Add platform libs only if it is not a template module
-        if (!ballerinaToml.isTemplateModule(packageName)) {
-            addPlatformLibs(root, packagePath, ballerinaToml);
-        }
+        addPlatformLibs(root, packagePath, ballerinaToml);
     }
 
     private static void addBaloJson(Path root) {

@@ -72,7 +72,7 @@ public class TestBallerinaTomlProcessor {
         pkg.setOrg("foo");
         pkg.setName("winery");
         pkg.setVersion("0.1.0");
-        ballerinaToml.setPkg(pkg);
+        ballerinaToml.setPackage(pkg);
 
         try {
             BallerinaTomlProcessor.validateBallerinaTomlPackage(ballerinaToml);
@@ -87,7 +87,7 @@ public class TestBallerinaTomlProcessor {
         Package pkg = new Package();
         pkg.setName("winery");
         pkg.setVersion("0.1.0");
-        ballerinaToml.setPkg(pkg);
+        ballerinaToml.setPackage(pkg);
 
         try {
             BallerinaTomlProcessor.validateBallerinaTomlPackage(ballerinaToml);
@@ -103,7 +103,7 @@ public class TestBallerinaTomlProcessor {
         Package pkg = new Package();
         pkg.setOrg("foo");
         pkg.setVersion("0.1.0");
-        ballerinaToml.setPkg(pkg);
+        ballerinaToml.setPackage(pkg);
 
         try {
             BallerinaTomlProcessor.validateBallerinaTomlPackage(ballerinaToml);
@@ -119,7 +119,7 @@ public class TestBallerinaTomlProcessor {
         Package pkg = new Package();
         pkg.setOrg("foo");
         pkg.setName("winery");
-        ballerinaToml.setPkg(pkg);
+        ballerinaToml.setPackage(pkg);
 
         try {
             BallerinaTomlProcessor.validateBallerinaTomlPackage(ballerinaToml);
@@ -136,7 +136,7 @@ public class TestBallerinaTomlProcessor {
         pkg.setOrg("foo-org");
         pkg.setName("winery");
         pkg.setVersion("0.1.0");
-        ballerinaToml.setPkg(pkg);
+        ballerinaToml.setPackage(pkg);
 
         try {
             BallerinaTomlProcessor.validateBallerinaTomlPackage(ballerinaToml);
@@ -156,7 +156,7 @@ public class TestBallerinaTomlProcessor {
         pkg.setOrg("foo");
         pkg.setName("winery");
         pkg.setVersion("v1.0.0");
-        ballerinaToml.setPkg(pkg);
+        ballerinaToml.setPackage(pkg);
 
         try {
             BallerinaTomlProcessor.validateBallerinaTomlPackage(ballerinaToml);
