@@ -71,12 +71,12 @@ public class Push {
      * @param proxyPassword proxy password
      * @param accessToken   access token of the org
      * @param orgName       org name
-     * @param moduleName    module name
+     * @param packageName   package name
      * @param version       module version
      * @param baloPath      path to the balo
      */
     public static void execute(String url, String proxyHost, int proxyPort, String proxyUsername, String proxyPassword,
-            String accessToken, String orgName, String moduleName, String version, Path baloPath) {
+            String accessToken, String orgName, String packageName, String version, Path baloPath) {
         initializeSsl();
         HttpURLConnection conn = createHttpUrlConnection(convertToUrl(url), proxyHost, proxyPort, proxyUsername,
                 proxyPassword);
@@ -96,7 +96,7 @@ public class Push {
             byte[] buffer = new byte[BUFFER_SIZE];
             int count;
             try (ProgressBar progressBar = new ProgressBar(
-                    orgName + "/" + moduleName + ":" + version + " [project repo -> central]",
+                    orgName + "/" + packageName + ":" + version + " [project repo -> central]",
                     getTotalFileSizeInKB(baloPath), 1000, outStream, ProgressBarStyle.ASCII, " KB", 1);
                     FileInputStream fis = new FileInputStream(baloPath.toFile())) {
                 while ((count = fis.read(buffer)) > 0) {
@@ -109,25 +109,25 @@ public class Push {
             throw ErrorUtil.createCommandException("error occurred while uploading balo to central: " + e.getMessage());
         }
 
-        handleResponse(conn, orgName, moduleName, version);
+        handleResponse(conn, orgName, packageName, version);
         Authenticator.setDefault(null);
     }
 
     /**
      * Handle the http response.
      *
-     * @param conn       http connection
-     * @param orgName    org name
-     * @param moduleName module name
-     * @param version    module version
+     * @param conn        http connection
+     * @param orgName     org name
+     * @param packageName package name
+     * @param version     module version
      */
-    private static void handleResponse(HttpURLConnection conn, String orgName, String moduleName, String version) {
+    private static void handleResponse(HttpURLConnection conn, String orgName, String packageName, String version) {
         try {
             int statusCode = getStatusCode(conn);
             // 200 - Module pushed successfully
             // Other - Error occurred, json returned with the error message
             if (statusCode == HttpURLConnection.HTTP_OK) {
-                outStream.println(orgName + "/" + moduleName + ":" + version + " pushed to central successfully");
+                outStream.println(orgName + "/" + packageName + ":" + version + " pushed to central successfully");
             } else if (statusCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
                 errStream.println("unauthorized access token for organization: " + orgName);
             } else if (statusCode == HttpURLConnection.HTTP_BAD_REQUEST) {
@@ -141,19 +141,19 @@ public class Push {
 
                     MapValue payload = (MapValue) JSONParser.parse(result.toString());
                     String message = payload.getStringValue(BStringUtils.fromString("message")).getValue();
-                    if (message.contains("module md file cannot be empty")) {
+                    if (message.contains("package md file cannot be empty")) {
                         errStream.println(message);
                     } else {
                         throw ErrorUtil.createCommandException(message);
                     }
                 } catch (IOException e) {
                     throw ErrorUtil.createCommandException(
-                            "failed to push the module '" + orgName + "/" + moduleName + ":" + version
+                            "failed to push the package '" + orgName + "/" + packageName + ":" + version
                                     + "' to the remote repository '" + conn.getURL() + "'");
                 }
             } else {
                 throw ErrorUtil.createCommandException(
-                        "failed to push the module '" + orgName + "/" + moduleName + ":" + version
+                        "failed to push the package '" + orgName + "/" + packageName + ":" + version
                                 + "' to the remote repository '" + conn.getURL() + "'");
             }
         } finally {
