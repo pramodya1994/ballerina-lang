@@ -258,7 +258,6 @@ public class ObjectTypeReferenceTest {
 
     @Test
     public void testInvalidTypeReferenceAcrossModules() {
-//        CompileResult result = BCompileUtil.compile("test-src/object/ObjectProject", "object_reference_negative");
         CompileResult result = BCompileUtil.compile("test-src/object/ObjectRefNegativeProject");
         int index = 0;
 
