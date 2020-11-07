@@ -1,6 +1,7 @@
-import testorg/foo;
+import testorg/foo as foo;
 import testorgtwo/foo as foo2;
-import testorg/utils;
+//import testorgtwo/footwo as foo2;
+import testorg/foo.utils as utils;
 
 public function testSimpleObjectAsStruct () returns [int, string, int, string] {
     foo:Man p = new ();

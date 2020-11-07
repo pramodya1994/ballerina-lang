@@ -1,5 +1,7 @@
-[project]
-org-name= "testorg"
-version= "1.0.0"
+[package]
+org="testorg"
+name="foo"
+version="1.0.0"
+exported=["foo", "utils"]
 
 [dependencies]
