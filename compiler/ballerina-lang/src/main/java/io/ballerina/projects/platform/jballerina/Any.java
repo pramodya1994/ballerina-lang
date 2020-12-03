@@ -15,21 +15,22 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-package io.ballerina.projects;
+package io.ballerina.projects.platform.jballerina;
+
+import io.ballerina.projects.CompilerBackend;
 
 /**
- * Contains a list of JVM versions that are supported by the jBallerina backend.
+ * Represents any version that supported by the jBallerina backend.
  *
  * @since 2.0.0
  */
-// TODO move this class to a separate Java package. e.g. io.ballerina.projects.platform.jballerina
-public enum JdkVersion implements CompilerBackend.TargetPlatform {
-    JAVA_11("java11"),
+public enum Any implements CompilerBackend.TargetPlatform {
+    ANY("any"),
     ;
 
     private final String code;
 
-    JdkVersion(String code) {
+    Any(String code) {
         this.code = code;
     }
 

@@ -21,6 +21,7 @@ import io.ballerina.projects.environment.PackageCache;
 import io.ballerina.projects.environment.ProjectEnvironment;
 import io.ballerina.projects.internal.DefaultDiagnosticResult;
 import io.ballerina.projects.internal.jballerina.JarWriter;
+import io.ballerina.projects.platform.jballerina.JdkVersion;
 import io.ballerina.projects.testsuite.TestSuite;
 import io.ballerina.projects.testsuite.TesterinaRegistry;
 import io.ballerina.projects.util.ProjectUtils;
@@ -156,9 +157,8 @@ public class JBallerinaBackend extends CompilerBackend {
     }
 
     private void emitBalo(Path filePath) {
-        JBallerinaBaloWriter writer = new JBallerinaBaloWriter(jdkVersion);
-        Package pkg = packageCache.getPackageOrThrow(packageContext.packageId());
-        writer.write(pkg, filePath);
+        JBallerinaBaloWriter writer = new JBallerinaBaloWriter(this.packageContext);
+        writer.write(filePath);
     }
 
     @Override

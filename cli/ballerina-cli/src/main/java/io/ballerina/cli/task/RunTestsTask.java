@@ -21,7 +21,7 @@ package io.ballerina.cli.task;
 import com.google.gson.Gson;
 import io.ballerina.projects.JBallerinaBackend;
 import io.ballerina.projects.JarResolver;
-import io.ballerina.projects.JdkVersion;
+import io.ballerina.projects.platform.jballerina.JdkVersion;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleId;
 import io.ballerina.projects.ModuleName;

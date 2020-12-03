@@ -17,6 +17,8 @@
  */
 package io.ballerina.projects;
 
+import io.ballerina.projects.platform.jballerina.JdkVersion;
+
 import java.util.Collection;
 
 /**

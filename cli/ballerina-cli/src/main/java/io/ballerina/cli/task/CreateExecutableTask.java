@@ -21,7 +21,7 @@ package io.ballerina.cli.task;
 import io.ballerina.cli.utils.FileUtils;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.JBallerinaBackend;
-import io.ballerina.projects.JdkVersion;
+import io.ballerina.projects.platform.jballerina.JdkVersion;
 import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectException;

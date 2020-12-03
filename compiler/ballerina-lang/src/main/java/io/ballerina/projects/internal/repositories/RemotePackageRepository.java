@@ -1,12 +1,12 @@
 package io.ballerina.projects.internal.repositories;
 
-import io.ballerina.projects.JdkVersion;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.ProjectException;
 import io.ballerina.projects.environment.Environment;
 import io.ballerina.projects.environment.PackageRepository;
 import io.ballerina.projects.environment.ResolutionRequest;
+import io.ballerina.projects.platform.jballerina.JdkVersion;
 import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.central.client.CentralAPIClient;
 import org.ballerinalang.central.client.exceptions.CentralClientException;

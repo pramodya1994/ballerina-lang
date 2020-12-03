@@ -54,6 +54,7 @@ import java.util.zip.ZipOutputStream;
 import static io.ballerina.projects.util.ProjectConstants.BALO_JSON;
 import static io.ballerina.projects.util.ProjectConstants.DEPENDENCY_GRAPH_JSON;
 import static io.ballerina.projects.util.ProjectConstants.PACKAGE_JSON;
+import static io.ballerina.projects.util.ProjectUtils.getBaloName;
 
 /**
  * {@code BaloWriter} writes a package to balo format.
@@ -69,25 +70,31 @@ public abstract class BaloWriter {
     protected static final String PATH = "path";
 
     // Set the target as any for default balo.
+    protected PackageContext packageContext;
     protected String target = "any";
     protected String langSpecVersion = "2020r2";
     protected String ballerinaVersion = "Ballerina 2.0.0";
     protected String implemetationVendor = "WSO2";
 
-    protected BaloWriter() {
+    protected BaloWriter(PackageContext packageContext) {
+        this.packageContext = packageContext;
     }
 
     /**
      * Write a package to a .balo and return the created .balo path.
      *
-     * @param pkg  Package to be written as a .balo.
      * @param baloPath Directory where the .balo should be created.
      */
-    public void write(Package pkg, Path baloPath) {
+    public void write(Path baloPath) {
+        String baloName = getBaloName(this.packageContext.packageOrg().value(),
+                                      this.packageContext.packageName().value(),
+                                      this.packageContext.packageVersion().value().toString(),
+                                      this.target);
         // Create the archive over write if exists
-        try (ZipOutputStream baloOutputStream = new ZipOutputStream(new FileOutputStream(String.valueOf(baloPath)))) {
+        try (ZipOutputStream baloOutputStream = new ZipOutputStream(
+                new FileOutputStream(String.valueOf(baloPath.resolve(baloName))))) {
             // Now lets put stuff in
-            populateBaloArchive(baloOutputStream, pkg);
+            populateBaloArchive(baloOutputStream);
         } catch (IOException e) {
             throw new ProjectException("Failed to create balo :" + e.getMessage(), e);
         } catch (BLangCompilerException be) {
@@ -101,15 +108,16 @@ public abstract class BaloWriter {
         }
     }
 
-    private void populateBaloArchive(ZipOutputStream baloOutputStream, Package pkg)
-            throws IOException {
+    private void populateBaloArchive(ZipOutputStream baloOutputStream) throws IOException {
 
         addBaloJson(baloOutputStream);
-        addPackageDoc(baloOutputStream, pkg.project().sourceRoot(), pkg.packageName().toString());
-        addPackageSource(baloOutputStream, pkg);
-        Optional<JsonArray> platformLibs = addPlatformLibs(baloOutputStream, pkg);
-        addPackageJson(baloOutputStream, pkg, platformLibs);
-        addDependenciesJson(baloOutputStream, pkg);
+        addPackageDoc(baloOutputStream,
+                      this.packageContext.project().sourceRoot(),
+                      this.packageContext.packageName().toString());
+        addPackageSource(baloOutputStream);
+        Optional<JsonArray> platformLibs = addPlatformLibs(baloOutputStream);
+        addPackageJson(baloOutputStream, platformLibs);
+        addDependenciesJson(baloOutputStream);
     }
 
     private void addBaloJson(ZipOutputStream baloOutputStream) {
@@ -123,12 +131,12 @@ public abstract class BaloWriter {
         }
     }
 
-    private void addPackageJson(ZipOutputStream baloOutputStream, Package pkg, Optional<JsonArray> platformLibs) {
-        PackageJson packageJson = new PackageJson(pkg.packageOrg().toString(),
-                                                  pkg.packageName().toString(),
-                                                  pkg.packageVersion().toString());
+    private void addPackageJson(ZipOutputStream baloOutputStream, Optional<JsonArray> platformLibs) {
+        PackageJson packageJson = new PackageJson(this.packageContext.packageOrg().toString(),
+                                                  this.packageContext.packageName().toString(),
+                                                  this.packageContext.packageVersion().toString());
 
-        PackageManifest packageManifest = pkg.manifest();
+        PackageManifest packageManifest = this.packageContext.manifest();
         packageJson.setLicenses((List<String>) packageManifest.getValue("license"));
         packageJson.setAuthors((List<String>) packageManifest.getValue("authors"));
         packageJson.setSourceRepository((String) packageManifest.getValue("repository"));
@@ -203,15 +211,15 @@ public abstract class BaloWriter {
         }
     }
 
-    private void addPackageSource(ZipOutputStream baloOutputStream, Package pkg) throws IOException {
+    private void addPackageSource(ZipOutputStream baloOutputStream) throws IOException {
 
         // add module sources
-        for (ModuleId moduleId : pkg.moduleIds()) {
-            Module module = pkg.module(moduleId);
+        for (ModuleId moduleId : this.packageContext.moduleIds()) {
+            Module module = this.packageContext.project().currentPackage().module(moduleId);
 
             // copy resources directory
-            Path moduleRoot = pkg.project().sourceRoot();
-            if (module.moduleName() != pkg.getDefaultModule().moduleName()) {
+            Path moduleRoot = this.packageContext.project().sourceRoot();
+            if (module.moduleName() != this.packageContext.project().currentPackage().getDefaultModule().moduleName()) {
                 moduleRoot = moduleRoot.resolve(MODULES_ROOT).resolve(module.moduleName().moduleNamePart());
             }
             Path resourcesPathInBalo = Paths.get(MODULES_ROOT, module.moduleName().toString(), RESOURCE_DIR_NAME);
@@ -232,17 +240,19 @@ public abstract class BaloWriter {
         }
     }
 
-    private void addDependenciesJson(ZipOutputStream baloOutputStream, Package pkg) {
-        PackageCache packageCache = pkg.project().projectEnvironmentContext().getService(PackageCache.class);
-        List<Dependency> packageDependencyGraph = getPackageDependencies(pkg.getResolution().dependencyGraph());
-        List<ModuleDependency> moduleDependencyGraph = getModuleDependencies(pkg, packageCache);
+    private void addDependenciesJson(ZipOutputStream baloOutputStream) {
+        PackageCache packageCache = this.packageContext.project().projectEnvironmentContext()
+                .getService(PackageCache.class);
+        List<Dependency> packageDependencyGraph = getPackageDependencies(
+                this.packageContext.getResolution().dependencyGraph());
+        List<ModuleDependency> moduleDependencyGraph = getModuleDependencies(packageCache);
 
         DependencyGraphJson depGraphJson = new DependencyGraphJson(packageDependencyGraph, moduleDependencyGraph);
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         try {
             putZipEntry(baloOutputStream, Paths.get(DEPENDENCY_GRAPH_JSON),
-                    new ByteArrayInputStream(gson.toJson(depGraphJson).getBytes(Charset.defaultCharset())));
+                        new ByteArrayInputStream(gson.toJson(depGraphJson).getBytes(Charset.defaultCharset())));
         } catch (IOException e) {
             throw new ProjectException("Failed to write '" + DEPENDENCY_GRAPH_JSON + "' file: " + e.getMessage(), e);
         }
@@ -279,10 +289,10 @@ public abstract class BaloWriter {
         return dependencies;
     }
 
-    private List<ModuleDependency> getModuleDependencies(Package pkg, PackageCache packageCache) {
+    private List<ModuleDependency> getModuleDependencies(PackageCache packageCache) {
         List<ModuleDependency> modules = new ArrayList<>();
-        for (ModuleId moduleId : pkg.moduleIds()) {
-            Module module = pkg.module(moduleId);
+        for (ModuleId moduleId : this.packageContext.moduleIds()) {
+            Module module = this.packageContext.project().currentPackage().module(moduleId);
             List<ModuleDependency> moduleDependencies = new ArrayList<>();
             for (io.ballerina.projects.ModuleDependency moduleDependency : module.moduleDependencies()) {
                 if (moduleDependency.packageDependency().scope() == PackageDependencyScope.TEST_ONLY) {
@@ -292,10 +302,13 @@ public abstract class BaloWriter {
                 Package pkgDependency = packageCache.getPackageOrThrow(
                         moduleDependency.packageDependency().packageId());
                 Module moduleInPkgDependency = pkgDependency.module(moduleDependency.moduleId());
-                moduleDependencies.add(createModuleDependencyEntry(pkgDependency, moduleInPkgDependency,
-                        Collections.emptyList()));
+                moduleDependencies.add(createModuleDependencyEntry(pkgDependency,
+                                                                   moduleInPkgDependency,
+                                                                   Collections.emptyList()));
             }
-            modules.add(createModuleDependencyEntry(pkg, module, moduleDependencies));
+            modules.add(createModuleDependencyEntry(this.packageContext.project().currentPackage(),
+                                                    module,
+                                                    moduleDependencies));
         }
         return modules;
     }
@@ -336,7 +349,7 @@ public abstract class BaloWriter {
         }
     }
 
-    protected abstract Optional<JsonArray> addPlatformLibs(ZipOutputStream baloOutputStream, Package pkg)
+    protected abstract Optional<JsonArray> addPlatformLibs(ZipOutputStream baloOutputStream)
             throws IOException;
 
     // Following function was put in to handle a bug in windows zipFileSystem
