@@ -18,11 +18,15 @@
 
 package org.ballerinalang.central.client;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.awaitility.Duration;
 import org.ballerinalang.central.client.exceptions.CentralClientException;
 import org.ballerinalang.central.client.exceptions.NoPackageException;
 import org.ballerinalang.central.client.model.Package;
+import org.ballerinalang.central.client.model.PackageResolution;
 import org.ballerinalang.central.client.model.PackageSearchResult;
+import org.ballerinalang.central.client.model.PackageVersionRequest;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -37,11 +41,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.given;
@@ -267,6 +274,34 @@ public class TestCentralApiClient extends CentralAPIClient {
         when(connection.getErrorStream()).thenReturn(new ByteArrayInputStream(resString.getBytes()));
 
         this.searchPackage("org=foo-org");
+    }
+
+    @Test(description = "Test get package versions")
+    public void testGetPackageVersions() throws IOException, CentralClientException {
+        Path pkgResJsonPath = UTILS_TEST_RESOURCES.resolve("package-resolution.json");
+        Path pkgVersionRequestJsonPath = UTILS_TEST_RESOURCES.resolve("package-version-request.json");
+        File packageJson = new File(String.valueOf(pkgResJsonPath));
+
+        Type listType = new TypeToken<ArrayList<PackageVersionRequest>>() {
+        }.getType();
+        List<PackageVersionRequest> pkgVersionRequests =
+                new Gson().fromJson(Files.readString(pkgVersionRequestJsonPath), listType);
+
+        try (FileOutputStream outputStream = new FileOutputStream(String.valueOf(pkgVersionRequestJsonPath))) {
+            when(connection.getOutputStream()).thenReturn(outputStream);
+            when(connection.getResponseCode()).thenReturn(HttpURLConnection.HTTP_OK);
+            when(connection.getInputStream()).thenReturn(new FileInputStream(packageJson));
+        }
+
+        List<PackageResolution> pkgResList = this.getPackageVersions(pkgVersionRequests, 3, "java11");
+        Assert.assertNotNull(pkgResList);
+        Assert.assertEquals(pkgResList.size(), 1);
+        PackageResolution pkgRes = pkgResList.get(0);
+        Assert.assertEquals(pkgRes.getOrganization(), "foo");
+        Assert.assertEquals(pkgRes.getName(), "twitter");
+        Assert.assertEquals(pkgRes.getVersions().size(), 2);
+        Assert.assertEquals(pkgRes.getVersions().get(0), "0.2.2");
+        Assert.assertEquals(pkgRes.getVersions().get(0), "0.2.1");
     }
 
     private void setBallerinaHome() {

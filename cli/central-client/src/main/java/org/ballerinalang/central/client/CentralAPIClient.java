@@ -19,6 +19,7 @@
 package org.ballerinalang.central.client;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import me.tongfei.progressbar.ProgressBar;
 import me.tongfei.progressbar.ProgressBarStyle;
 import org.ballerinalang.central.client.exceptions.CentralClientException;
@@ -26,14 +27,18 @@ import org.ballerinalang.central.client.exceptions.ConnectionErrorException;
 import org.ballerinalang.central.client.exceptions.NoPackageException;
 import org.ballerinalang.central.client.model.Error;
 import org.ballerinalang.central.client.model.Package;
+import org.ballerinalang.central.client.model.PackageResolution;
 import org.ballerinalang.central.client.model.PackageSearchResult;
+import org.ballerinalang.central.client.model.PackageVersionRequest;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.Type;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.Proxy;
@@ -46,6 +51,7 @@ import java.util.stream.Collectors;
 
 import static org.ballerinalang.central.client.CentralClientConstants.ACCEPT;
 import static org.ballerinalang.central.client.CentralClientConstants.ACCEPT_ENCODING;
+import static org.ballerinalang.central.client.CentralClientConstants.APPLICATION_JSON;
 import static org.ballerinalang.central.client.CentralClientConstants.APPLICATION_OCTET_STREAM;
 import static org.ballerinalang.central.client.CentralClientConstants.AUTHORIZATION;
 import static org.ballerinalang.central.client.CentralClientConstants.BALLERINA_PLATFORM;
@@ -209,6 +215,79 @@ public class CentralAPIClient {
                 throw new CentralClientException(
                         "error: could not connect to remote repository to find versions for: " + orgNamePath + "/"
                                 + packageNamePath + ".");
+            }
+        } finally {
+            conn.disconnect();
+            Authenticator.setDefault(null);
+        }
+    }
+
+    /**
+     * Get the package versions.
+     *
+     * @param packageVersionRequests The package version requests list. (required)
+     * @param level                  The package resolution level.
+     * @param supportedPlatform      The supported platform. (required)
+     * @return PackageJsonSchema
+     */
+    public List<PackageResolution> getPackageVersions(List<PackageVersionRequest> packageVersionRequests, int level,
+            String supportedPlatform) throws CentralClientException {
+        initializeSsl();
+        String url = PACKAGES + "/resolve-dependencies";
+        if (level != -1) {
+            url = url + "?level=" + level;
+        }
+
+        HttpURLConnection conn = createHttpUrlConnection(url);
+        conn.setInstanceFollowRedirects(false);
+        setRequestMethod(conn, Utils.RequestMethod.POST);
+
+        // Set headers
+        conn.setRequestProperty(BALLERINA_PLATFORM, supportedPlatform);
+        conn.setRequestProperty(CONTENT_TYPE, APPLICATION_JSON);
+        conn.setRequestProperty(ACCEPT, APPLICATION_JSON);
+
+        // Create the request body
+        String body = "{\"packages\":" + new Gson().toJson(packageVersionRequests) + "}";
+        try (OutputStream os = conn.getOutputStream()) {
+            byte[] input = body.getBytes(Charset.defaultCharset());
+            os.write(input, 0, input.length);
+        } catch (IOException e) {
+            throw new CentralClientException("error: could not connect to remote repository to find versions.");
+        }
+
+        // status code and meaning
+        //// 200 - package resolution
+        //// 404 - package not found
+        //// 500 - backend is broken
+        try {
+            int statusCode = getStatusCode(conn);
+            if (statusCode == HttpURLConnection.HTTP_OK) {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), Charset.defaultCharset()))) {
+                    Type listType = new TypeToken<ArrayList<PackageResolution>>() {
+                    }.getType();
+                    return new Gson().fromJson(reader, listType);
+                } catch (IOException e) {
+                    throw new CentralClientException(e.getMessage());
+                }
+            } else if (statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(conn.getErrorStream(), Charset.defaultCharset()))) {
+                    Error errorJsonSchema = new Gson().fromJson(reader, Error.class);
+                    if (errorJsonSchema.getMessage().contains("package not found")) {
+                        // if package not found return empty list
+                        return new ArrayList<>();
+                    } else {
+                        throw new CentralClientException(
+                                "error: could not connect to remote repository to find versions. reason: "
+                                        + errorJsonSchema.getMessage());
+                    }
+                } catch (IOException e) {
+                    throw new CentralClientException(e.getMessage());
+                }
+            } else {
+                throw new CentralClientException("error: could not connect to remote repository to find versions.");
             }
         } finally {
             conn.disconnect();
