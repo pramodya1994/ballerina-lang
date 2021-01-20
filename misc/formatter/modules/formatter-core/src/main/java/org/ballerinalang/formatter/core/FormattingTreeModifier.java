@@ -1292,7 +1292,12 @@ public class FormattingTreeModifier extends TreeModifier {
                 formatNode(moduleVariableDeclarationNode.typedBindingPattern(),
                         moduleVariableDeclarationNode.equalsToken().isPresent() ? 1 : 0, 0);
         Token equalsToken = formatToken(moduleVariableDeclarationNode.equalsToken().orElse(null), 1, 0);
+
+        boolean prevInLineAnnotation = env.inLineAnnotation;
+        setInLineAnnotation(true);
         ExpressionNode initializer = formatNode(moduleVariableDeclarationNode.initializer().orElse(null), 0, 0);
+        setInLineAnnotation(prevInLineAnnotation);
+
         Token semicolonToken = formatToken(moduleVariableDeclarationNode.semicolonToken(),
                 env.trailingWS, env.trailingNL);
 
@@ -3240,7 +3245,7 @@ public class FormattingTreeModifier extends TreeModifier {
 
     @Override
     public FieldMatchPatternNode transform(FieldMatchPatternNode fieldMatchPatternNode) {
-        SimpleNameReferenceNode fieldNameNode = formatNode(fieldMatchPatternNode.fieldNameNode(), 0, 0);
+        IdentifierToken fieldNameNode = formatNode(fieldMatchPatternNode.fieldNameNode(), 0, 0);
         Token colonToken = formatToken(fieldMatchPatternNode.colonToken(), 0, 0);
         Node matchPattern = formatNode(fieldMatchPatternNode.matchPattern(), env.trailingWS, env.trailingNL);
         return fieldMatchPatternNode.modify()

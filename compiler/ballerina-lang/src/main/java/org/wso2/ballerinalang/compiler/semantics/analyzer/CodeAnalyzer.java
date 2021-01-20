@@ -161,8 +161,16 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLQName;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLQuotedString;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangXMLTextLiteral;
 import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangConstPattern;
+import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangErrorCauseMatchPattern;
+import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangErrorFieldMatchPatterns;
+import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangErrorMatchPattern;
+import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangErrorMessageMatchPattern;
+import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangFieldMatchPattern;
 import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangListMatchPattern;
+import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangMappingMatchPattern;
 import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangMatchPattern;
+import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangNamedArgMatchPattern;
+import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangSimpleMatchPattern;
 import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangVarBindingPatternMatchPattern;
 import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangWildCardMatchPattern;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangAssignment;
@@ -855,11 +863,19 @@ public class CodeAnalyzer extends BLangNodeVisitor {
         if (!patternListContainsSameVars) {
             dlog.error(matchClause.pos, DiagnosticErrorCode.MATCH_PATTERNS_SHOULD_CONTAIN_SAME_SET_OF_VARIABLES);
         }
-        matchClause.declaredVars.putAll(matchClause.matchPatterns.get(0).declaredVars);
 
         analyzeNode(matchClause.blockStmt, env);
         this.hasLastPatternInStatement =
                     this.hasLastPatternInStatement || (matchClause.matchGuard == null && hasLastPatternInClause);
+    }
+
+    @Override
+    public void visit(BLangMappingMatchPattern mappingMatchPattern) {
+    }
+
+    @Override
+    public void visit(BLangFieldMatchPattern fieldMatchPattern) {
+
     }
 
     private void checkSimilarMatchPatternsBetweenClauses(BLangMatchClause firstClause, BLangMatchClause secondClause) {
@@ -880,6 +896,9 @@ public class CodeAnalyzer extends BLangNodeVisitor {
         }
 
         switch (firstPatternKind) {
+            case WILDCARD_MATCH_PATTERN:
+            case REST_MATCH_PATTERN:
+                return true;
             case CONST_MATCH_PATTERN:
                 return checkSimilarConstMatchPattern((BLangConstPattern) firstPattern,
                         (BLangConstPattern) secondPattern);
@@ -890,11 +909,170 @@ public class CodeAnalyzer extends BLangNodeVisitor {
             case LIST_MATCH_PATTERN:
                 return checkSimilarListMatchPattern((BLangListMatchPattern) firstPattern,
                         (BLangListMatchPattern) secondPattern);
-            case REST_MATCH_PATTERN:
-                return true;
+            case MAPPING_MATCH_PATTERN:
+                return checkSimilarMappingMatchPattern((BLangMappingMatchPattern) firstPattern,
+                        (BLangMappingMatchPattern) secondPattern);
+            case ERROR_MATCH_PATTERN:
+                return checkSimilarErrorMatchPattern((BLangErrorMatchPattern) firstPattern,
+                        (BLangErrorMatchPattern) secondPattern);
             default:
                 return false;
         }
+    }
+
+    private boolean checkSimilarErrorMatchPattern(BLangErrorMatchPattern firstErrorMatchPattern,
+                                                  BLangErrorMatchPattern secondErrorMatchPattern) {
+        if (!checkSimilarErrorTypeReference(firstErrorMatchPattern.errorTypeReference,
+                secondErrorMatchPattern.errorTypeReference)) {
+            return false;
+        }
+
+        if (!checkSimilarErrorMessagePattern(firstErrorMatchPattern.errorMessageMatchPattern,
+                secondErrorMatchPattern.errorMessageMatchPattern)) {
+            return false;
+        }
+
+        if (!checkSimilarErrorCauseMatchPattern(firstErrorMatchPattern.errorCauseMatchPattern,
+                secondErrorMatchPattern.errorCauseMatchPattern)) {
+            return false;
+        }
+
+        if (!checkSimilarErrorFieldMatchPatterns(firstErrorMatchPattern.errorFieldMatchPatterns,
+                secondErrorMatchPattern.errorFieldMatchPatterns)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean checkSimilarErrorTypeReference(BLangUserDefinedType firstErrorTypeRef,
+                                                   BLangUserDefinedType secondErrorTypeRef) {
+        if ((firstErrorTypeRef != null && secondErrorTypeRef == null)
+                || (firstErrorTypeRef == null && secondErrorTypeRef != null)) {
+            return false;
+        }
+        if (firstErrorTypeRef == null) {
+            return true;
+        }
+        return firstErrorTypeRef.typeName.value.equals(secondErrorTypeRef.typeName.value);
+    }
+
+    private boolean checkSimilarErrorMessagePattern(BLangErrorMessageMatchPattern firstErrorMsgMatchPattern,
+                                                    BLangErrorMessageMatchPattern secondErrorMsgMatchPattern) {
+        if ((firstErrorMsgMatchPattern != null && secondErrorMsgMatchPattern == null)
+                || (firstErrorMsgMatchPattern == null && secondErrorMsgMatchPattern != null)) {
+            return false;
+        }
+        if (firstErrorMsgMatchPattern == null) {
+            return true;
+        }
+        return checkSimilarSimpleMatchPattern(firstErrorMsgMatchPattern.simpleMatchPattern,
+                secondErrorMsgMatchPattern.simpleMatchPattern);
+    }
+
+    private boolean checkSimilarSimpleMatchPattern(BLangSimpleMatchPattern firstSimpleMatchPattern,
+                                                   BLangSimpleMatchPattern secondSimpleMatchPattern) {
+        if ((firstSimpleMatchPattern != null && secondSimpleMatchPattern == null)
+                || (firstSimpleMatchPattern == null && secondSimpleMatchPattern != null)) {
+            return false;
+        }
+        if (firstSimpleMatchPattern == null) {
+            return true;
+        }
+        if (firstSimpleMatchPattern.constPattern != null && secondSimpleMatchPattern.constPattern != null) {
+            if (!checkSimilarConstMatchPattern(firstSimpleMatchPattern.constPattern,
+                    secondSimpleMatchPattern.constPattern)) {
+                return false;
+            }
+        } else if (!(firstSimpleMatchPattern.constPattern == null && secondSimpleMatchPattern.constPattern == null)) {
+            return false;
+        }
+
+        if (firstSimpleMatchPattern.wildCardMatchPattern != null
+                && secondSimpleMatchPattern.wildCardMatchPattern == null) {
+            return false;
+        }
+        if (firstSimpleMatchPattern.wildCardMatchPattern == null
+                && secondSimpleMatchPattern.wildCardMatchPattern != null) {
+            return false;
+        }
+
+        if (firstSimpleMatchPattern.varVariableName != null
+                && secondSimpleMatchPattern.varVariableName == null) {
+            return false;
+        }
+        if (firstSimpleMatchPattern.varVariableName == null
+                && secondSimpleMatchPattern.varVariableName != null) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean checkSimilarErrorCauseMatchPattern(BLangErrorCauseMatchPattern firstErrorCauseMatchPattern,
+                                                       BLangErrorCauseMatchPattern secondErrorCauseMatchPattern) {
+        if ((firstErrorCauseMatchPattern != null && secondErrorCauseMatchPattern == null)
+                || (firstErrorCauseMatchPattern == null && secondErrorCauseMatchPattern != null)) {
+            return false;
+        }
+        if (firstErrorCauseMatchPattern == null) {
+            return true;
+        }
+        if (!checkSimilarSimpleMatchPattern(firstErrorCauseMatchPattern.simpleMatchPattern,
+                secondErrorCauseMatchPattern.simpleMatchPattern)) {
+            return false;
+        }
+        return checkSimilarErrorMatchPattern(firstErrorCauseMatchPattern.errorMatchPattern,
+                secondErrorCauseMatchPattern.errorMatchPattern);
+    }
+
+    private boolean checkSimilarErrorFieldMatchPatterns(BLangErrorFieldMatchPatterns firstErrorFieldMatchPatterns,
+                                                        BLangErrorFieldMatchPatterns secondErrorFieldMatchPatterns) {
+        if ((firstErrorFieldMatchPatterns != null && secondErrorFieldMatchPatterns == null)
+                || (firstErrorFieldMatchPatterns == null && secondErrorFieldMatchPatterns != null)) {
+            return false;
+        }
+        if (firstErrorFieldMatchPatterns == null) {
+            return true;
+        }
+        if (firstErrorFieldMatchPatterns.restMatchPattern != null
+                && secondErrorFieldMatchPatterns.restMatchPattern == null) {
+            return false;
+        }
+        if (firstErrorFieldMatchPatterns.restMatchPattern == null
+                && secondErrorFieldMatchPatterns.restMatchPattern != null) {
+            return false;
+        }
+
+        List<BLangNamedArgMatchPattern> firstNamedArgMatchPatterns = firstErrorFieldMatchPatterns.namedArgMatchPatterns;
+        List<BLangNamedArgMatchPattern> secondNamedArgMatchPatterns =
+                secondErrorFieldMatchPatterns.namedArgMatchPatterns;
+        if (firstNamedArgMatchPatterns.size() != secondNamedArgMatchPatterns.size()) {
+            return false;
+        }
+
+        for (int i = 0; i < firstNamedArgMatchPatterns.size(); i++) {
+            if (!checkSimilarNamedArgMatchPatterns(firstNamedArgMatchPatterns.get(i),
+                    secondNamedArgMatchPatterns.get(i))) {
+                return false;
+            }
+        }
+
+        if (firstErrorFieldMatchPatterns.restMatchPattern == null) {
+            return true;
+        }
+        return checkSimilarMatchPatterns(firstErrorFieldMatchPatterns.restMatchPattern,
+                secondErrorFieldMatchPatterns.restMatchPattern);
+    }
+
+    private boolean checkSimilarNamedArgMatchPatterns(BLangNamedArgMatchPattern firstNamedArgMatchPattern,
+                                                      BLangNamedArgMatchPattern secondNamedArgMatchPattern) {
+
+        if (firstNamedArgMatchPattern.argName.value.equals(secondNamedArgMatchPattern.argName.value)) {
+            return checkSimilarMatchPatterns(firstNamedArgMatchPattern.matchPattern,
+                    secondNamedArgMatchPattern.matchPattern);
+        }
+        return false;
     }
 
     private boolean checkSimilarConstMatchPattern(BLangConstPattern firstConstMatchPattern,
@@ -955,6 +1133,55 @@ public class CodeAnalyzer extends BLangNodeVisitor {
             }
         }
         return true;
+    }
+
+    private boolean checkSimilarMappingMatchPattern(BLangMappingMatchPattern firstMappingMatchPattern,
+                                                    BLangMappingMatchPattern secondMappingMatchPattern) {
+        if (firstMappingMatchPattern.restMatchPattern != null && secondMappingMatchPattern.restMatchPattern == null) {
+            return false;
+        }
+        if (firstMappingMatchPattern.restMatchPattern == null && secondMappingMatchPattern.restMatchPattern != null) {
+            return false;
+        }
+        List<BLangFieldMatchPattern> firstFieldMatchPatterns = firstMappingMatchPattern.fieldMatchPatterns;
+        List<BLangFieldMatchPattern> secondFieldMatchPatterns = secondMappingMatchPattern.fieldMatchPatterns;
+        if (firstMappingMatchPattern.restMatchPattern == null) {
+            if (firstFieldMatchPatterns.size() != secondFieldMatchPatterns.size()) {
+                return false;
+            }
+            return checkSimilarFieldMatchPatterns(firstFieldMatchPatterns, secondFieldMatchPatterns);
+        }
+        if (firstFieldMatchPatterns.size() > secondFieldMatchPatterns.size()) {
+            return false;
+        }
+        if (firstFieldMatchPatterns.size() == secondFieldMatchPatterns.size()) {
+            return checkSimilarFieldMatchPatterns(firstFieldMatchPatterns, secondFieldMatchPatterns);
+        }
+        return checkSimilarMatchPatterns(firstMappingMatchPattern.restMatchPattern,
+                secondMappingMatchPattern.restMatchPattern);
+    }
+
+    private boolean checkSimilarFieldMatchPatterns(List<BLangFieldMatchPattern> firstFieldMatchPatterns,
+                                                   List<BLangFieldMatchPattern> secondFieldMatchPatterns) {
+        for (BLangFieldMatchPattern firstFieldMatchPattern : firstFieldMatchPatterns) {
+            boolean isSamePattern = false;
+            for (BLangFieldMatchPattern secondFieldMatchPattern : secondFieldMatchPatterns) {
+                if (checkSimilarFieldMatchPattern(firstFieldMatchPattern, secondFieldMatchPattern)) {
+                    isSamePattern = true;
+                    break;
+                }
+            }
+            if (!isSamePattern) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean checkSimilarFieldMatchPattern(BLangFieldMatchPattern firstFieldMatchPattern,
+                                                  BLangFieldMatchPattern secondFieldMatchPattern) {
+        return firstFieldMatchPattern.fieldName.value.equals(secondFieldMatchPattern.fieldName.value) &&
+                checkSimilarMatchPatterns(firstFieldMatchPattern.matchPattern, secondFieldMatchPattern.matchPattern);
     }
 
     private boolean checkSimilarBindingPatterns(BLangBindingPattern firstBidingPattern,
@@ -1047,19 +1274,36 @@ public class CodeAnalyzer extends BLangNodeVisitor {
     }
 
     private boolean isConstMatchPatternExist(BLangMatchPattern matchPattern) {
-        if (matchPattern.getKind() != NodeKind.LIST_MATCH_PATTERN) {
-            return matchPattern.getKind() == NodeKind.CONST_MATCH_PATTERN;
-        }
-        for (BLangMatchPattern memberMatchPattern : ((BLangListMatchPattern) matchPattern).matchPatterns) {
-            if (isConstMatchPatternExist(memberMatchPattern)) {
+        switch (matchPattern.getKind()) {
+            case CONST_MATCH_PATTERN:
                 return true;
-            }
+            case LIST_MATCH_PATTERN:
+                for (BLangMatchPattern memberMatchPattern : ((BLangListMatchPattern) matchPattern).matchPatterns) {
+                    if (isConstMatchPatternExist(memberMatchPattern)) {
+                        return true;
+                    }
+                }
+                return false;
+            case MAPPING_MATCH_PATTERN:
+                for (BLangFieldMatchPattern fieldMatchPattern :
+                        ((BLangMappingMatchPattern) matchPattern).fieldMatchPatterns) {
+                    if (isConstMatchPatternExist(fieldMatchPattern.matchPattern)) {
+                        return true;
+                    }
+                }
+                return false;
+            default:
+                return false;
         }
-        return false;
     }
 
     @Override
     public void visit(BLangCaptureBindingPattern captureBindingPattern) {
+
+    }
+
+    @Override
+    public void visit(BLangErrorMatchPattern errorMatchPattern) {
 
     }
 
@@ -2251,7 +2495,7 @@ public class CodeAnalyzer extends BLangNodeVisitor {
             was.hasErrors = true;
         } else if (workerSendNode.expr instanceof ActionNode) {
             this.dlog.error(workerSendNode.expr.pos, DiagnosticErrorCode.INVALID_SEND_EXPR);
-        } else if (!type.isAnydata()) {
+        } else if (!types.isAssignable(type, symTable.cloneableType)) {
             this.dlog.error(workerSendNode.pos, DiagnosticErrorCode.INVALID_TYPE_FOR_SEND, type);
         }
 
@@ -3336,9 +3580,11 @@ public class CodeAnalyzer extends BLangNodeVisitor {
 
     private boolean indirectIntersectionExists(BLangExpression expression, BType testType) {
         BType expressionType = expression.type;
+        SymbolEnv symbolEnv = symTable.pkgEnvMap.get(env.enclPkg.symbol);
         switch (expressionType.tag) {
             case TypeTags.UNION:
-                if (types.getTypeForUnionTypeMembersAssignableToType((BUnionType) expressionType, testType) !=
+                if (types.getTypeForUnionTypeMembersAssignableToType((BUnionType) expressionType, testType,
+                        symbolEnv) !=
                         symTable.semanticError) {
                     return true;
                 }
@@ -3352,7 +3598,8 @@ public class CodeAnalyzer extends BLangNodeVisitor {
 
         switch (testType.tag) {
             case TypeTags.UNION:
-                return types.getTypeForUnionTypeMembersAssignableToType((BUnionType) testType, expressionType) !=
+                return types.getTypeForUnionTypeMembersAssignableToType((BUnionType) testType, expressionType,
+                        symbolEnv) !=
                         symTable.semanticError;
             case TypeTags.FINITE:
                 return types.getTypeForFiniteTypeValuesAssignableToType((BFiniteType) testType, expressionType) !=
@@ -3579,13 +3826,16 @@ public class CodeAnalyzer extends BLangNodeVisitor {
             this.dlog.error(funcNode.pos, DiagnosticErrorCode.MAIN_SHOULD_BE_PUBLIC);
         }
 
+        IsAnydataUniqueVisitor isAnydataUniqueVisitor = new IsAnydataUniqueVisitor();
         funcNode.requiredParams.forEach(param -> {
-            if (!param.type.isAnydata()) {
+            if (!isAnydataUniqueVisitor.visit(param.type)) {
                 this.dlog.error(param.pos, DiagnosticErrorCode.MAIN_PARAMS_SHOULD_BE_ANYDATA, param.type);
             }
         });
 
-        if (funcNode.restParam != null && !funcNode.restParam.type.isAnydata()) {
+        isAnydataUniqueVisitor.reset();
+
+        if (funcNode.restParam != null && !isAnydataUniqueVisitor.visit(funcNode.restParam.type)) {
             this.dlog.error(funcNode.restParam.pos, DiagnosticErrorCode.MAIN_PARAMS_SHOULD_BE_ANYDATA,
                             funcNode.restParam.type);
         }

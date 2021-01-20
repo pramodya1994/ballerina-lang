@@ -117,31 +117,19 @@ public class DocumentationGenerator {
         return Optional.empty();
     }
 
-    public static Optional<Symbol> getDocumentableSymbol(NonTerminalNode node, SemanticModel semanticModel,
-                                                         String fileName) {
+    public static Optional<Symbol> getDocumentableSymbol(NonTerminalNode node, SemanticModel semanticModel) {
         switch (node.kind()) {
             case FUNCTION_DEFINITION:
-            case OBJECT_METHOD_DEFINITION: {
-                FunctionDefinitionNode functionDefNode = (FunctionDefinitionNode) node;
-                return semanticModel.symbol(fileName, functionDefNode.functionName().lineRange().startLine());
-            }
-            case METHOD_DECLARATION: {
-                MethodDeclarationNode methodDeclrNode = (MethodDeclarationNode) node;
-                return semanticModel.symbol(fileName, methodDeclrNode.methodName().lineRange().startLine());
-            }
+            case OBJECT_METHOD_DEFINITION:
+            case METHOD_DECLARATION:
 //            case SERVICE_DECLARATION: {
 //                ServiceDeclarationNode serviceDeclrNode = (ServiceDeclarationNode) node;
 //                return semanticModel.symbol(fileName, serviceDeclrNode.typeDescriptor().map(s->s.lineRange()
 //                .startLine()).);
 //            }
-            case TYPE_DEFINITION: {
-                TypeDefinitionNode typeDefNode = (TypeDefinitionNode) node;
-                return semanticModel.symbol(fileName, typeDefNode.typeName().lineRange().startLine());
-            }
-            case CLASS_DEFINITION: {
-                ClassDefinitionNode classDefNode = (ClassDefinitionNode) node;
-                return semanticModel.symbol(fileName, classDefNode.className().lineRange().startLine());
-            }
+            case TYPE_DEFINITION:
+            case CLASS_DEFINITION:
+                return semanticModel.symbol(node);
             default:
                 break;
         }
@@ -161,7 +149,7 @@ public class DocumentationGenerator {
             docStart = CommonUtil.toRange(metadata.annotations().get(0).lineRange()).getStart();
         }
         int offset = docStart.getCharacter();
-        String desc = String.format("# Description%n%s",
+        String desc = String.format("Description%n%s",
                                     String.join("", Collections.nCopies(offset, " ")));
         return new DocAttachmentInfo(desc, docStart);
     }
@@ -204,7 +192,7 @@ public class DocumentationGenerator {
         }
         int offset = docStart.getCharacter();
         io.ballerina.compiler.syntax.tree.Node typeDesc = typeDefNode.typeDescriptor();
-        String desc = String.format("# Description%n%s",
+        String desc = String.format("Description%n%s",
                                     String.join("", Collections.nCopies(offset, " ")));
         Map<String, String> parameters = new HashMap<>();
         switch (typeDesc.kind()) {
@@ -251,7 +239,7 @@ public class DocumentationGenerator {
             docStart = CommonUtil.toRange(metadata.annotations().get(0).lineRange()).getStart();
         }
         int offset = docStart.getCharacter();
-        String desc = String.format("# Description%n%s",
+        String desc = String.format("Description%n%s",
                                     String.join("", Collections.nCopies(offset, " ")));
         Map<String, String> parameters = new HashMap<>();
         classDefNode.members().forEach(field -> {
@@ -282,7 +270,7 @@ public class DocumentationGenerator {
             docStart = CommonUtil.toRange(metadata.annotations().get(0).lineRange()).getStart();
         }
         int offset = docStart.getCharacter();
-        String desc = String.format("# Description%n%s",
+        String desc = String.format("Description%n%s",
                                     String.join("", Collections.nCopies(offset, " ")));
         Map<String, String> parameters = new HashMap<>();
         signatureNode.parameters().forEach(param -> {
