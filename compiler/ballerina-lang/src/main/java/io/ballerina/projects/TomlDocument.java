@@ -17,15 +17,12 @@
  */
 package io.ballerina.projects;
 
+import io.ballerina.toml.api.Toml;
 import io.ballerina.toml.semantic.ast.TomlTableNode;
-import io.ballerina.toml.semantic.ast.TomlTransformer;
-import io.ballerina.toml.syntax.tree.DocumentNode;
-import io.ballerina.toml.syntax.tree.SyntaxTree;
-import io.ballerina.tools.text.TextDocument;
-import io.ballerina.tools.text.TextDocuments;
+import io.ballerina.toml.validator.TomlValidator;
+import io.ballerina.toml.validator.schema.Schema;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -35,21 +32,22 @@ import java.nio.file.Path;
  */
 public abstract class TomlDocument {
     private final Path filePath;
-    private TextDocument textDocument;
-    private SyntaxTree syntaxTree;
+    private final Path schemaPath;
     private TomlTableNode tomlAstNode;
+    private Toml toml;
 
-    protected TomlDocument(Path filePath) {
+    protected TomlDocument(Path filePath, Path schemaPath) {
         this.filePath = filePath;
+        this.schemaPath = schemaPath;
     }
 
-    public SyntaxTree syntaxTree() {
-        if (syntaxTree != null) {
-            return syntaxTree;
+    public Toml toml() {
+        if (toml != null) {
+            return toml;
         }
 
         parseToml();
-        return syntaxTree;
+        return toml;
     }
 
     public TomlTableNode tomlAstNode() {
@@ -61,38 +59,26 @@ public abstract class TomlDocument {
         return tomlAstNode;
     }
 
-    public TextDocument textDocument() {
-        if (textDocument != null) {
-            return textDocument;
-        }
-
-        try {
-            textDocument = TextDocuments.from(Files.readString(filePath));
-        } catch (IOException e) {
-            throw new ProjectException("Failed to read file: " + filePath, e);
-        }
-        return textDocument;
-    }
-
     private void parseToml() {
-        TextDocument textDocument = textDocument();
+        TomlValidator validator;
         try {
-            syntaxTree = SyntaxTree.from(textDocument, getFileName(filePath));
-            TomlTransformer nodeTransformer = new TomlTransformer();
-            tomlAstNode = (TomlTableNode) nodeTransformer.transform((DocumentNode) syntaxTree.rootNode());
-        } catch (RuntimeException e) {
-            // The toml parser throws runtime exceptions for some cases
-            throw new ProjectException("Failed to parse file: " + getFileName(filePath), e);
+            validator = new TomlValidator(Schema.from(this.schemaPath));
+        } catch (IOException e) {
+            throw new ProjectException("Failed to read the TOML validator schema file from the path:"
+                                               + this.schemaPath);
         }
-    }
 
-    private String getFileName(Path filePath) {
-        final Path fileNamePath = filePath.getFileName();
-        if (fileNamePath != null) {
-            return fileNamePath.toString();
-        } else {
-            // This branch may never be executed.
-            throw new ProjectException("Failed to retrieve the TOML file name from the path: " + filePath);
+        try {
+            toml = Toml.read(this.filePath);
+        } catch (IOException e) {
+            throw new ProjectException("Failed to read the 'Ballerina.toml' file from the path:" + this.filePath);
         }
+
+        if (toml == null) {
+            throw new ProjectException("Failed to read the 'Ballerina.toml' file from the path:" + this.filePath);
+        }
+
+        validator.validate(toml);
+        tomlAstNode = toml.rootNode();
     }
 }

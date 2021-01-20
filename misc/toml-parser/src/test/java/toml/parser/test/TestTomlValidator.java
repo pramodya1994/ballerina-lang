@@ -21,7 +21,8 @@ package toml.parser.test;
 import io.ballerina.toml.api.Toml;
 import io.ballerina.toml.validator.TomlValidator;
 import io.ballerina.toml.validator.schema.Schema;
-import io.ballerina.tools.diagnostics.Diagnostic;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -36,17 +37,29 @@ import java.nio.file.Paths;
 public class TestTomlValidator {
     private static final PrintStream OUT = System.out;
 
-    public static void main(String [] args) throws IOException {
+    @Test
+    public void testC2cSchemaValidator() throws IOException {
         Path resourceDirectory = Paths.get("src", "test", "resources", "validator", "sample-schema.json");
         TomlValidator validator = new TomlValidator(Schema.from(resourceDirectory));
 
         Path sampleInput = Paths.get("src", "test", "resources", "validator", "sample.toml");
 
         Toml toml = Toml.read(sampleInput);
+        Assert.assertNotNull(toml);
         validator.validate(toml);
+        Assert.assertTrue(toml.diagnostics().isEmpty());
+    }
 
-        for (Diagnostic d: toml.diagnostics()) {
-            OUT.println(d);
-        }
+    @Test
+    public void testBallerinaTomlSchemaValidator() throws IOException {
+        Path resourceDirectory = Paths.get("src", "test", "resources", "validator", "ballerina-toml-schema.json");
+        TomlValidator validator = new TomlValidator(Schema.from(resourceDirectory));
+
+        Path sampleInput = Paths.get("src", "test", "resources", "validator", "sample-ballerina.toml");
+
+        Toml toml = Toml.read(sampleInput);
+        Assert.assertNotNull(toml);
+        validator.validate(toml);
+        Assert.assertTrue(toml.diagnostics().isEmpty());
     }
 }

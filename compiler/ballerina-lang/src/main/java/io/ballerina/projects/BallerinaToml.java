@@ -41,6 +41,7 @@ import io.ballerina.tools.text.TextRange;
 import org.ballerinalang.compiler.CompilerOptionName;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,8 +68,8 @@ public class BallerinaToml extends TomlDocument {
     private static final String REPOSITORY = "repository";
     private static final String KEYWORDS = "keywords";
 
-    private BallerinaToml(Path filePath) {
-        super(filePath);
+    private BallerinaToml(Path filePath, Path schemaPath) {
+        super(filePath, schemaPath);
         this.filePath = filePath;
         this.diagnosticList = new ArrayList<>();
         this.packageManifest = parseAsPackageManifest();
@@ -76,7 +77,8 @@ public class BallerinaToml extends TomlDocument {
     }
 
     public static BallerinaToml from(Path filePath) {
-        return new BallerinaToml(filePath);
+        Path schemaPath = Paths.get("src", "main", "resources", "ballerina-toml-schema.json");
+        return new BallerinaToml(filePath, schemaPath);
     }
 
     public DiagnosticResult diagnostics() {
@@ -85,7 +87,7 @@ public class BallerinaToml extends TomlDocument {
         }
 
         // Add toml syntax diagnostics
-        syntaxTree().diagnostics().forEach(this.diagnosticList::add);
+        this.diagnosticList.addAll(toml().diagnostics());
         diagnostics = new DefaultDiagnosticResult(this.diagnosticList);
         return diagnostics;
     }
@@ -98,18 +100,6 @@ public class BallerinaToml extends TomlDocument {
             message.append("\n");
         }
         return message.toString();
-    }
-
-    private String convertDiagnosticToString(Diagnostic diagnostic) {
-        LineRange lineRange = diagnostic.location().lineRange();
-
-        LineRange oneBasedLineRange = LineRange.from(
-                lineRange.filePath(),
-                LinePosition.from(lineRange.startLine().line(), lineRange.startLine().offset() + 1),
-                LinePosition.from(lineRange.endLine().line(), lineRange.endLine().offset() + 1));
-
-        return diagnostic.diagnosticInfo().severity().toString() + " [" +
-                oneBasedLineRange.filePath() + ":" + oneBasedLineRange + "] " + diagnostic.message();
     }
 
     public PackageManifest packageManifest() {
@@ -445,6 +435,18 @@ public class BallerinaToml extends TomlDocument {
             addDiagnostic(null, DiagnosticSeverity.ERROR, topLevelStringNode,
                           "invalid Ballerina.toml file: at '" + key + "'");
         }
+    }
+
+    private String convertDiagnosticToString(Diagnostic diagnostic) {
+        LineRange lineRange = diagnostic.location().lineRange();
+
+        LineRange oneBasedLineRange = LineRange.from(
+                lineRange.filePath(),
+                LinePosition.from(lineRange.startLine().line(), lineRange.startLine().offset() + 1),
+                LinePosition.from(lineRange.endLine().line(), lineRange.endLine().offset() + 1));
+
+        return diagnostic.diagnosticInfo().severity().toString() + " [" +
+                oneBasedLineRange.filePath() + ":" + oneBasedLineRange + "] " + diagnostic.message();
     }
 
     private void addDiagnostic(DiagnosticCode diagnosticCode, DiagnosticSeverity severity, Node node, String message) {
