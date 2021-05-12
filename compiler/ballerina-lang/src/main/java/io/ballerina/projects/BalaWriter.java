@@ -32,6 +32,7 @@ import io.ballerina.projects.internal.model.CompilerPluginDescriptor;
 import io.ballerina.projects.internal.model.Dependency;
 import org.apache.commons.compress.utils.IOUtils;
 import org.ballerinalang.compiler.BLangCompilerException;
+import org.ballerinalang.toml.model.Repository;
 import org.wso2.ballerinalang.util.RepoUtils;
 
 import java.io.ByteArrayInputStream;
@@ -122,7 +123,7 @@ public abstract class BalaWriter {
         addPackageJson(balaOutputStream, platformLibs);
 
         addCompilerPlugin(balaOutputStream);
-        addDependenciesJson(balaOutputStream);
+        addDependencyGraphJson(balaOutputStream);
     }
 
     private void addBalaJson(ZipOutputStream balaOutputStream) {
@@ -245,7 +246,7 @@ public abstract class BalaWriter {
         }
     }
 
-    private void addDependenciesJson(ZipOutputStream balaOutputStream) {
+    private void addDependencyGraphJson(ZipOutputStream balaOutputStream) {
         PackageCache packageCache = this.packageContext.project().projectEnvironmentContext()
                 .getService(PackageCache.class);
         List<Dependency> packageDependencyGraph = getPackageDependencies(
@@ -272,9 +273,14 @@ public abstract class BalaWriter {
                 continue;
             }
 
-            PackageContext packageContext = resolvedDep.packageInstance().packageContext();
-            Dependency dependency = new Dependency(packageContext.packageOrg().toString(),
-                    packageContext.packageName().toString(), packageContext.packageVersion().toString());
+            PackageContext pkgContext = resolvedDep.packageInstance().packageContext();
+            Dependency dependency = new Dependency(pkgContext.packageOrg().toString(),
+                                                   pkgContext.packageName().toString(),
+                                                   pkgContext.packageVersion().toString());
+            String repository = getRepository(pkgContext);
+            if (repository != null) {
+                dependency.setRepository(repository);
+            }
 
             List<Dependency> dependencyList = new ArrayList<>();
             Collection<ResolvedPackageDependency> pkgDependencies = dependencyGraph.getDirectDependencies(resolvedDep);
@@ -287,6 +293,7 @@ public abstract class BalaWriter {
                 Dependency dep = new Dependency(dependencyPkgContext.packageOrg().toString(),
                         dependencyPkgContext.packageName().toString(),
                         dependencyPkgContext.packageVersion().toString());
+                // TODO: Need to decide repository should be set for transitive dependencies
                 dependencyList.add(dep);
             }
             dependency.setDependencies(dependencyList);
@@ -376,5 +383,17 @@ public abstract class BalaWriter {
             }
             return file.toString();
         }
+    }
+
+    private String getRepository(PackageContext pkgContext) {
+        Optional<Package> aPackage = pkgContext.project().projectEnvironmentContext().environment()
+                .getService(PackageCache.class).getPackage(pkgContext.packageId());
+        if (aPackage.isPresent()) {
+            String repository = aPackage.get().manifest().repository();
+            if (repository != null && !repository.isEmpty()) {
+                return repository;
+            }
+        }
+        return null;
     }
 }

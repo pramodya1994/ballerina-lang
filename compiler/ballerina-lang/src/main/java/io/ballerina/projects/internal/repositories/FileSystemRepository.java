@@ -88,6 +88,7 @@ public class FileSystemRepository implements PackageRepository {
         String orgName = resolutionRequest.orgName().value();
         String version = resolutionRequest.version().isPresent() ?
                 resolutionRequest.version().get().toString() : "0.0.0";
+        resolutionRequest.repositoryName();
 
         //First we will check for a bala that match any platform
         Path balaPath = this.bala.resolve(

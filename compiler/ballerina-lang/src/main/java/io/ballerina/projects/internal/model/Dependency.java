@@ -29,6 +29,7 @@ public class Dependency {
     String org;
     String name;
     String version;
+    String repository;
     List<Dependency> dependencies;
 
     public Dependency(String org, String name, String version) {
@@ -37,23 +38,31 @@ public class Dependency {
         this.version = version;
     }
 
-    public String getOrg() {
+    public String org() {
         return org;
     }
 
-    public String getName() {
+    public String name() {
         return name;
     }
 
-    public String getVersion() {
+    public String version() {
         return version;
     }
 
-    public List<Dependency> getDependencies() {
+    public String repository() {
+        return repository;
+    }
+
+    public List<Dependency> dependencies() {
         return dependencies;
     }
 
     public void setDependencies(List<Dependency> dependencies) {
         this.dependencies = dependencies;
+    }
+
+    public void setRepository(String repository) {
+        this.repository = repository;
     }
 }

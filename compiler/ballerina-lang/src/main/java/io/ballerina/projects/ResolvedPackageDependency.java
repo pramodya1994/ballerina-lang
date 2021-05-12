@@ -24,6 +24,7 @@ package io.ballerina.projects;
  */
 public class ResolvedPackageDependency extends PackageDependency {
     private final Package resolvedPackage;
+    private final String repository;
     private final DependencyResolutionType dependencyResolvedType;
 
     public ResolvedPackageDependency(Package resolvedPackage, PackageDependencyScope scope) {

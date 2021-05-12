@@ -57,6 +57,8 @@ public class BalaProject extends Project {
         return balaProject;
     }
 
+    // TODO: Add another load method which will take the repository
+
     private BalaProject(ProjectEnvironmentBuilder environmentBuilder, Path balaPath) {
         super(ProjectKind.BALA_PROJECT, balaPath, environmentBuilder);
         this.platform = BalaFiles.readPackageJson(balaPath).getPlatform();

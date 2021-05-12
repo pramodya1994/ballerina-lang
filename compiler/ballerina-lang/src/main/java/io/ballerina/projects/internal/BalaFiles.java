@@ -396,13 +396,13 @@ public class BalaFiles {
         DependencyGraph.DependencyGraphBuilder<PackageDescriptor> graphBuilder = getBuilder();
 
         for (Dependency dependency : packageDependencyGraph) {
-            PackageDescriptor pkg = PackageDescriptor.from(PackageOrg.from(dependency.getOrg()),
-                    PackageName.from(dependency.getName()), PackageVersion.from(dependency.getVersion()));
+            PackageDescriptor pkg = PackageDescriptor.from(PackageOrg.from(dependency.org()),
+                                                           PackageName.from(dependency.name()), PackageVersion.from(dependency.version()));
             Set<PackageDescriptor> dependentPackages = new HashSet<>();
-            for (Dependency dependencyPkg : dependency.getDependencies()) {
-                dependentPackages.add(PackageDescriptor.from(PackageOrg.from(dependencyPkg.getOrg()),
-                        PackageName.from(dependencyPkg.getName()),
-                        PackageVersion.from(dependencyPkg.getVersion())));
+            for (Dependency dependencyPkg : dependency.dependencies()) {
+                dependentPackages.add(PackageDescriptor.from(PackageOrg.from(dependencyPkg.org()),
+                        PackageName.from(dependencyPkg.name()),
+                        PackageVersion.from(dependencyPkg.version())));
             }
             graphBuilder.addDependencies(pkg, dependentPackages);
         }
